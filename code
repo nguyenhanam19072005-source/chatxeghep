@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ứng Dụng Chat Xe Ghép</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+        }
+        .chat-container {
+            display: flex;
+            height: 100vh;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .sidebar {
+            width: 380px;
+            background-color: #fff;
+            border-right: 1px solid #e5e7eb;
+            display: flex;
+            flex-direction: column;
+        }
+        .chat-area {
+            flex-grow: 1;
+            background-color: #f9fafb;
+            display: flex;
+            flex-direction: column;
+        }
+        .message-list {
+            flex-grow: 1;
+            padding: 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .message-input-area {
+            background-color: #fff;
+            padding: 16px;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        .message-bubble {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 20px;
+            word-wrap: break-word;
+        }
+        .my-message {
+            background-color: #3b82f6;
+            color: #fff;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+        .other-message {
+            background-color: #e5e7eb;
+            color: #1f2937;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+        .chat-header {
+            background-color: #fff;
+            padding: 16px 24px;
+            border-bottom: 1px solid #e5e7eb;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .ride-info {
+            font-size: 14px;
+            color: #4b5563;
+            margin-top: 4px;
+        }
+        .ride-item.selected {
+            background-color: #f0f4ff;
+        }
+        .ride-status-accepted {
+            color: #10b981;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center">
+
+    <div id="app" class="chat-container">
+
+        <!-- Màn hình đăng nhập -->
+        <div id="login-screen" class="w-full h-full flex items-center justify-center p-6">
+            <div class="bg-white rounded-xl shadow-xl p-8 w-full max-w-sm">
+                <h2 class="text-3xl font-bold text-center mb-6 text-gray-800">Đăng nhập Xe Ghép</h2>
+                <div class="space-y-4">
+                    <input type="text" id="username-input" placeholder="Tên đăng nhập" class="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <button id="login-btn" class="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg shadow-md hover:bg-blue-700 transition duration-300">Đăng nhập</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Màn hình chính của ứng dụng chat -->
+        <div id="chat-screen" class="w-full h-full hidden">
+            <!-- Sidebar: Danh sách cuốc xe/nhóm chat -->
+            <div class="sidebar">
+                <div class="p-6 border-b border-gray-200">
+                    <h1 class="text-2xl font-bold text-gray-800">Quản lý Dự án</h1>
+                    <p id="user-display" class="text-sm text-gray-500 mt-1">Bạn đã đăng nhập dưới tên: </p>
+                    <p id="user-points-display" class="text-sm text-gray-500 mt-1">Điểm của bạn: 0</p>
+                    <p id="user-id-display" class="text-xs text-gray-500 mt-2 break-all">ID người dùng: </p>
+                </div>
+                <!-- Các tab điều hướng -->
+                <div class="flex border-b border-gray-200">
+                    <button id="tab-rides" class="flex-1 py-3 text-center font-semibold text-sm border-r border-gray-200 hover:bg-gray-100 transition duration-300 bg-gray-100">
+                        Cuốc Xe
+                    </button>
+                    <button id="tab-tasks" class="flex-1 py-3 text-center font-semibold text-sm hover:bg-gray-100 transition duration-300">
+                        Công việc & Lỗi
+                    </button>
+                </div>
+                <!-- Nội dung các tab -->
+                <div id="tab-content-rides" class="flex-grow overflow-y-auto">
+                    <div id="ride-list">
+                        <!-- Các cuốc xe sẽ được thêm bằng JS -->
+                    </div>
+                </div>
+                <div id="tab-content-tasks" class="flex-grow overflow-y-auto hidden">
+                    <div id="task-list">
+                         <!-- Các task và bug sẽ được thêm bằng JS -->
+                    </div>
+                </div>
+                <div class="p-4 border-t border-gray-200">
+                    <button id="main-action-btn" class="w-full bg-green-500 text-white font-semibold py-2 rounded-lg hover:bg-green-600 transition">
+                        Tạo Cuốc Xe Mới
+                    </button>
+                </div>
+            </div>
+
+            <!-- Khu vực chat chính -->
+            <div class="chat-area">
+                <!-- Tiêu đề cuốc xe/nhóm chat -->
+                <div id="chat-header" class="chat-header">
+                    <div>
+                        <h2 id="chat-title" class="text-xl font-semibold text-gray-800">Chọn một cuốc xe để xem chi tiết</h2>
+                        <p id="ride-details" class="ride-info hidden"></p>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <button id="edit-ride-btn" class="text-blue-600 font-semibold hidden hover:text-blue-800 transition">Sửa cuốc xe</button>
+                        <button id="accept-ride-btn" class="text-green-600 font-semibold hidden hover:text-green-800 transition">Nhận cuốc</button>
+                        <button id="cancel-ride-btn" class="text-red-600 font-semibold hidden hover:text-red-800 transition">Hủy cuốc</button>
+                        <button id="share-points-btn" class="text-purple-600 font-semibold hidden hover:text-purple-800 transition">San điểm</button>
+                    </div>
+                </div>
+                
+                <!-- Biểu ngữ nhắc nhở vị trí -->
+                <div id="location-reminder-banner" class="bg-red-500 text-white p-2 text-sm text-center font-bold hidden">
+                    Vị trí của bạn được yêu cầu!
+                </div>
+                
+                <!-- Khu vực hiển thị tin nhắn -->
+                <div id="message-list" class="message-list">
+                    <!-- Tin nhắn sẽ được thêm bằng JS -->
+                </div>
+                
+                <!-- Khu vực nhập tin nhắn -->
+                <div id="message-input-area" class="message-input-area hidden">
+                    <!-- Nút chat nhanh -->
+                    <div class="flex flex-wrap justify-start gap-2 w-full p-2">
+                        <button class="quick-chat-btn bg-gray-200 text-gray-800 text-sm px-3 py-1 rounded-full hover:bg-gray-300 transition">ok</button>
+                        <button class="quick-chat-btn bg-gray-200 text-gray-800 text-sm px-3 py-1 rounded-full hover:bg-gray-300 transition">Đang đến</button>
+                        <button class="quick-chat-btn bg-gray-200 text-gray-800 text-sm px-3 py-1 rounded-full hover:bg-gray-300 transition">gửi VT</button>
+                        <button class="quick-chat-btn class="quick-chat-btn bg-gray-200 text-gray-800 text-sm px-3 py-1 rounded-full hover:bg-gray-300 transition">CSCT</button>
+                    </div>
+                    <div class="flex w-full">
+                        <input type="text" id="message-input" placeholder="Nhập tin nhắn..." class="flex-grow p-3 rounded-full bg-gray-100 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <button id="send-btn" class="bg-blue-500 text-white p-3 rounded-full hover:bg-blue-600 transition ml-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <!-- Khu vực hiển thị thông tin task chi tiết -->
+                <div id="task-detail-area" class="flex-grow flex flex-col p-6 overflow-y-auto hidden">
+                    <h2 id="task-detail-title" class="text-2xl font-bold mb-4"></h2>
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <p class="text-gray-600 mb-2"><strong>Mô tả:</strong> <span id="task-detail-description"></span></p>
+                        <p class="text-gray-600 mb-2"><strong>Loại:</strong> <span id="task-detail-type"></span></p>
+                        <p class="text-gray-600 mb-2"><strong>Trạng thái:</strong> <span id="task-detail-status" class="font-semibold"></span></p>
+                        <p class="text-gray-600 mb-2"><strong>Người giao:</strong> <span id="task-detail-assignee"></span></p>
+                        <p class="text-gray-600"><strong>Ngày tạo:</strong> <span id="task-detail-date"></span></p>
+                    </div>
+                    <div class="mt-6 flex gap-4">
+                        <button id="update-status-btn" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition">Cập nhật Trạng thái</button>
+                        <button id="delete-task-btn" class="bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 transition">Xóa Task</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal thông báo -->
+    <div id="notification-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-gray-900 bg-opacity-50">
+        <div class="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full">
+            <div class="text-center">
+                <h3 id="notification-title" class="text-lg font-bold mb-2">Thông báo</h3>
+                <p id="notification-message" class="text-gray-600 mb-4"></p>
+                <button id="close-modal-btn" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal San điểm -->
+    <div id="share-points-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-gray-900 bg-opacity-50">
+        <div class="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full">
+            <div class="text-center mb-4">
+                <h3 class="text-xl font-bold mb-2">San điểm cho tài xế khác</h3>
+                <p class="text-gray-600">Điểm hiện tại của bạn: <span id="current-points">0</span></p>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label for="receiver-select" class="block text-sm font-medium text-gray-700 mb-1">Chọn tài xế:</label>
+                    <select id="receiver-select" class="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+                </div>
+                <div>
+                    <label for="points-input" class="block text-sm font-medium text-gray-700 mb-1">Nhập số điểm muốn san:</label>
+                    <input type="number" id="points-input" min="1" class="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="flex justify-between gap-2 mt-4">
+                    <button id="confirm-share-btn" class="w-full bg-purple-600 text-white font-semibold py-3 rounded-lg shadow-md hover:bg-purple-700 transition duration-300">Xác nhận</button>
+                    <button id="cancel-share-btn" class="w-full bg-gray-300 text-gray-800 font-semibold py-3 rounded-lg shadow-md hover:bg-gray-400 transition duration-300">Hủy</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Tạo Task -->
+    <div id="create-task-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-gray-900 bg-opacity-50">
+        <div class="bg-white rounded-xl shadow-xl p-6 max-w-md w-full">
+            <div class="text-center mb-4">
+                <h3 class="text-xl font-bold mb-2">Tạo Task hoặc Bug mới</h3>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label for="task-title-input" class="block text-sm font-medium text-gray-700 mb-1">Tiêu đề:</label>
+                    <input type="text" id="task-title-input" class="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label for="task-description-input" class="block text-sm font-medium text-gray-700 mb-1">Mô tả:</label>
+                    <textarea id="task-description-input" rows="4" class="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+                <div>
+                    <label for="task-type-select" class="block text-sm font-medium text-gray-700 mb-1">Loại:</label>
+                    <select id="task-type-select" class="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="Task">Task</option>
+                        <option value="Bug">Bug</option>
+                    </select>
+                </div>
+                <div class="flex justify-between gap-2 mt-4">
+                    <button id="confirm-create-task-btn" class="w-full bg-green-600 text-white font-semibold py-3 rounded-lg shadow-md hover:bg-green-700 transition duration-300">Tạo</button>
+                    <button id="cancel-create-task-btn" class="w-full bg-gray-300 text-gray-800 font-semibold py-3 rounded-lg shadow-md hover:bg-gray-400 transition duration-300">Hủy</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vùng hiển thị thông báo chờ kết nối Firebase -->
+    <div id="loading-overlay" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-50">
+        <div class="flex flex-col items-center">
+            <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500"></div>
+            <p class="mt-4 text-white text-lg">Đang kết nối đến cơ sở dữ liệu...</p>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, where, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global variables provided by the environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const authToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let app;
+        let auth;
+        let db;
+        let userId;
+
+        // --- 1. Biến toàn cục và Element DOM ---
+        const loginScreen = document.getElementById('login-screen');
+        const chatScreen = document.getElementById('chat-screen');
+        const usernameInput = document.getElementById('username-input');
+        const loginBtn = document.getElementById('login-btn');
+        const userDisplay = document.getElementById('user-display');
+        const userPointsDisplay = document.getElementById('user-points-display');
+        const userIdDisplay = document.getElementById('user-id-display');
+        
+        const tabRides = document.getElementById('tab-rides');
+        const tabTasks = document.getElementById('tab-tasks');
+        const tabContentRides = document.getElementById('tab-content-rides');
+        const tabContentTasks = document.getElementById('tab-content-tasks');
+        const mainActionBtn = document.getElementById('main-action-btn');
+        
+        const rideList = document.getElementById('ride-list');
+        const taskList = document.getElementById('task-list');
+        
+        const chatHeader = document.getElementById('chat-header');
+        const chatTitle = document.getElementById('chat-title');
+        const rideDetails = document.getElementById('ride-details');
+        const messageList = document.getElementById('message-list');
+        const messageInputArea = document.getElementById('message-input-area');
+        const messageInput = document.getElementById('message-input');
+        const sendBtn = document.getElementById('send-btn');
+        const locationReminderBanner = document.getElementById('location-reminder-banner');
+        
+        const editRideBtn = document.getElementById('edit-ride-btn');
+        const acceptRideBtn = document.getElementById('accept-ride-btn');
+        const cancelRideBtn = document.getElementById('cancel-ride-btn');
+        const sharePointsBtn = document.getElementById('share-points-btn');
+
+        const taskDetailArea = document.getElementById('task-detail-area');
+        const taskDetailTitle = document.getElementById('task-detail-title');
+        const taskDetailDescription = document.getElementById('task-detail-description');
+        const taskDetailType = document.getElementById('task-detail-type');
+        const taskDetailStatus = document.getElementById('task-detail-status');
+        const taskDetailAssignee = document.getElementById('task-detail-assignee');
+        const taskDetailDate = document.getElementById('task-detail-date');
+        const updateStatusBtn = document.getElementById('update-status-btn');
+        const deleteTaskBtn = document.getElementById('delete-task-btn');
+        
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const notificationModal = document.getElementById('notification-modal');
+        const notificationTitle = document.getElementById('notification-title');
+        const notificationMessage = document.getElementById('notification-message');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        const sharePointsModal = document.getElementById('share-points-modal');
+        const currentPointsDisplay = document.getElementById('current-points');
+        const receiverSelect = document.getElementById('receiver-select');
+        const pointsInput = document.getElementById('points-input');
+        const confirmShareBtn = document.getElementById('confirm-share-btn');
+        const cancelShareBtn = document.getElementById('cancel-share-btn');
+        const createTaskModal = document.getElementById('create-task-modal');
+        const taskTitleInput = document.getElementById('task-title-input');
+        const taskDescriptionInput = document.getElementById('task-description-input');
+        const taskTypeSelect = document.getElementById('task-type-select');
+        const confirmCreateTaskBtn = document.getElementById('confirm-create-task-btn');
+        const cancelCreateTaskBtn = document.getElementById('cancel-create-task-btn');
+
+        let currentUser = null;
+        let currentRideId = null;
+        let currentTaskId = null;
+        let unsubscribeFromRide = null;
+        let unsubscribeFromMessages = null;
+        let unsubscribeFromTasks = null;
+        let unsubscribeFromUsers = null;
+
+        // --- 2. Các hàm Firebase và đồng bộ dữ liệu ---
+
+        async function initializeFirebase() {
+            loadingOverlay.classList.remove('hidden');
+            try {
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                
+                if (authToken) {
+                    await signInWithCustomToken(auth, authToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                userId = auth.currentUser.uid;
+                
+                console.log("Firebase initialized and user authenticated.");
+                // Bắt đầu lắng nghe dữ liệu sau khi xác thực thành công
+                setupRealtimeListeners();
+            } catch (error) {
+                console.error("Lỗi khi khởi tạo Firebase hoặc xác thực:", error);
+                showNotification("Lỗi kết nối", "Không thể kết nối đến máy chủ. Vui lòng thử lại.");
+                loadingOverlay.classList.add('hidden');
+            }
+        }
+
+        function setupRealtimeListeners() {
+            // Lắng nghe tất cả các cuốc xe trong cơ sở dữ liệu công cộng
+            const ridesCollectionRef = collection(db, `artifacts/${appId}/public/data/rides`);
+            onSnapshot(ridesCollectionRef, (querySnapshot) => {
+                const rides = {};
+                querySnapshot.forEach((doc) => {
+                    rides[doc.id] = { id: doc.id, ...doc.data() };
+                });
+                loadRides(rides);
+                loadingOverlay.classList.add('hidden');
+            });
+
+            // Lắng nghe tất cả các task/bug trong cơ sở dữ liệu
+            const tasksCollectionRef = collection(db, `artifacts/${appId}/public/data/tasks_and_bugs`);
+            unsubscribeFromTasks = onSnapshot(tasksCollectionRef, (querySnapshot) => {
+                const tasks = [];
+                querySnapshot.forEach(doc => {
+                    tasks.push({ id: doc.id, ...doc.data() });
+                });
+                loadTasks(tasks);
+            });
+
+            // Lắng nghe profile của người dùng hiện tại
+            const userProfileRef = doc(db, `artifacts/${appId}/users/${userId}/profiles/user_profile`);
+            onSnapshot(userProfileRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    currentUser = { id: userId, ...docSnap.data() };
+                    userPointsDisplay.textContent = `Điểm của bạn: ${currentUser.points || 0}`;
+                } else {
+                    // Nếu profile chưa tồn tại, tạo mới
+                    const newProfile = { name: `Người dùng ${userId.substring(0, 6)}`, points: 20 };
+                    setDoc(userProfileRef, newProfile).then(() => {
+                        currentUser = { id: userId, ...newProfile };
+                        userPointsDisplay.textContent = `Điểm của bạn: ${currentUser.points}`;
+                    });
+                }
+            });
+        }
+
+        async function createOrUpdateUser(username) {
+            const userProfileRef = doc(db, `artifacts/${appId}/users/${userId}/profiles/user_profile`);
+            await setDoc(userProfileRef, { name: username, points: 20 }, { merge: true });
+        }
+        
+        async function getRideMembers(rideId) {
+            const rideRef = doc(db, `artifacts/${appId}/public/data/rides`, rideId);
+            const rideSnap = await getDoc(rideRef);
+            if (rideSnap.exists()) {
+                const rideData = rideSnap.data();
+                // Lấy thông tin chi tiết của từng thành viên
+                const memberIds = rideData.members || [];
+                const members = [];
+                for (const memberId of memberIds) {
+                    const memberProfileRef = doc(db, `artifacts/${appId}/users/${memberId}/profiles/user_profile`);
+                    const memberSnap = await getDoc(memberProfileRef);
+                    if (memberSnap.exists()) {
+                        members.push({ id: memberId, ...memberSnap.data() });
+                    }
+                }
+                return members;
+            }
+            return [];
+        }
+
+        // --- 3. Các hàm chính (đã được cập nhật để sử dụng Firestore) ---
+        
+        function showNotification(title, message) {
+            notificationTitle.textContent = title;
+            notificationMessage.textContent = message;
+            notificationModal.classList.remove('hidden');
+            notificationModal.classList.add('flex');
+        }
+
+        // Chức năng đăng nhập
+        async function login() {
+            const username = usernameInput.value.trim();
+            if (username) {
+                await createOrUpdateUser(username);
+                showChatScreen();
+            }
+        }
+        
+        // Hiển thị màn hình chat
+        function showChatScreen() {
+            loginScreen.classList.add('hidden');
+            chatScreen.classList.remove('hidden');
+            userDisplay.textContent = `Bạn đã đăng nhập dưới tên: ${currentUser.name}`;
+            userIdDisplay.textContent = `ID người dùng: ${userId}`;
+        }
+        
+        // Tải và sắp xếp danh sách các cuốc xe
+        function loadRides(ridesData) {
+            rideList.innerHTML = '';
+            const ridesArray = Object.values(ridesData);
+            
+            ridesArray.sort((a, b) => {
+                const statusA = a.status || 'Pending';
+                const statusB = b.status || 'Pending';
+                if (statusA === 'Accepted' && statusB !== 'Accepted') return 1;
+                if (statusA !== 'Accepted' && statusB === 'Accepted') return -1;
+                return 0;
+            });
+
+            if (ridesArray.length > 0) {
+                ridesArray.forEach(ride => {
+                    const rideItem = createRideItem(ride);
+                    rideList.appendChild(rideItem);
+                });
+                if (!currentRideId || !ridesData[currentRideId]) {
+                    selectRide(ridesArray[0].id);
+                } else {
+                    selectRide(currentRideId);
+                }
+            } else {
+                rideList.innerHTML = '<div class="p-4 text-center text-gray-500">Chưa có cuốc xe nào.</div>';
+            }
+        }
+        
+        // Tạo một item cuốc xe trên thanh sidebar
+        function createRideItem(ride) {
+            const div = document.createElement('div');
+            div.className = 'ride-item p-4 border-b border-gray-200 cursor-pointer hover:bg-gray-100 transition';
+            div.setAttribute('data-ride-id', ride.id);
+            let statusText = '';
+            if (ride.status === 'Accepted') {
+                statusText = '<span class="ride-status-accepted">(Đã nhận)</span>';
+            } else if (ride.status === 'Canceled') {
+                statusText = '<span class="text-red-500 font-bold">(Đã hủy)</span>';
+            }
+
+            div.innerHTML = `
+                <div class="font-semibold text-gray-800">${ride.name} ${statusText}</div>
+                <p class="text-sm text-gray-500">
+                    <span class="font-bold">Từ:</span> ${ride.origin} <br>
+                    <span class="font-bold">Đến:</span> ${ride.destination}
+                </p>
+                <p class="text-xs text-blue-600 mt-1">
+                    <span class="font-bold">Thời gian:</span> ${ride.pickupTime || 'Chưa xác định'}
+                </p>
+            `;
+            div.addEventListener('click', () => {
+                hideTaskDetails();
+                selectRide(ride.id);
+            });
+            return div;
+        }
+
+        // Tải danh sách task
+        function loadTasks(tasksData) {
+            taskList.innerHTML = '';
+            tasksData.sort((a, b) => new Date(a.date) - new Date(b.date));
+            if (tasksData.length > 0) {
+                tasksData.forEach(task => {
+                    const taskItem = createTaskItem(task);
+                    taskList.appendChild(taskItem);
+                });
+            } else {
+                taskList.innerHTML = '<div class="p-4 text-center text-gray-500">Chưa có task hoặc bug nào.</div>';
+            }
+        }
+
+        // Tạo một item task trên thanh sidebar
+        function createTaskItem(task) {
+            const div = document.createElement('div');
+            div.className = 'task-item p-4 border-b border-gray-200 cursor-pointer hover:bg-gray-100 transition';
+            div.setAttribute('data-task-id', task.id);
+            let statusClass = '';
+            let statusText = '';
+            if (task.status === 'Done') {
+                statusClass = 'text-green-500';
+                statusText = 'Đã xong';
+            } else if (task.status === 'In Progress') {
+                statusClass = 'text-yellow-500';
+                statusText = 'Đang tiến hành';
+            } else {
+                statusClass = 'text-gray-500';
+                statusText = 'Chưa làm';
+            }
+            
+            let typeColor = '';
+            if (task.type === 'Bug') {
+                typeColor = 'text-red-500';
+            } else {
+                typeColor = 'text-blue-500';
+            }
+            
+            div.innerHTML = `
+                <div class="font-semibold text-gray-800">${task.title}</div>
+                <p class="text-sm ${typeColor} font-bold mt-1">${task.type}</p>
+                <p class="text-xs text-gray-500 mt-1">Trạng thái: <span class="${statusClass}">${statusText}</span></p>
+            `;
+            div.addEventListener('click', () => {
+                hideChatArea();
+                selectTask(task.id);
+            });
+            return div;
+        }
+        
+        // Chọn một cuốc xe để hiển thị
+        function selectRide(id) {
+            if (unsubscribeFromMessages) {
+                unsubscribeFromMessages();
+            }
+            currentRideId = id;
+            
+            document.querySelectorAll('.ride-item').forEach(item => item.classList.remove('selected'));
+            const selectedRideElement = document.querySelector(`.ride-item[data-ride-id="${id}"]`);
+            if (selectedRideElement) {
+                selectedRideElement.classList.add('selected');
+            }
+
+            // Lắng nghe thông tin chi tiết của cuốc xe
+            const rideRef = doc(db, `artifacts/${appId}/public/data/rides`, id);
+            unsubscribeFromRide = onSnapshot(rideRef, (docSnap) => {
+                const ride = docSnap.data();
+                if (ride) {
+                    chatTitle.textContent = ride.name;
+                    rideDetails.textContent = `Từ: ${ride.origin}, Đến: ${ride.destination} (${ride.pickupTime || 'Chưa xác định'})`;
+                    rideDetails.classList.remove('hidden');
+
+                    editRideBtn.classList.remove('hidden');
+                    if (ride.status === 'Accepted') {
+                        acceptRideBtn.classList.add('hidden');
+                        cancelRideBtn.classList.remove('hidden');
+                    } else {
+                        acceptRideBtn.classList.remove('hidden');
+                        cancelRideBtn.classList.add('hidden');
+                    }
+                    sharePointsBtn.classList.remove('hidden');
+
+                    if (ride.locationReminder) {
+                        locationReminderBanner.classList.remove('hidden');
+                    } else {
+                        locationReminderBanner.classList.add('hidden');
+                    }
+                }
+            });
+
+            // Lắng nghe tin nhắn
+            const messagesRef = collection(db, `artifacts/${appId}/public/data/rides/${id}/messages`);
+            const messagesQuery = query(messagesRef);
+            unsubscribeFromMessages = onSnapshot(messagesQuery, (querySnapshot) => {
+                const messages = [];
+                querySnapshot.forEach(doc => {
+                    messages.push(doc.data());
+                });
+                
+                messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+                messageList.innerHTML = '';
+                messages.forEach(message => displayMessage(message));
+                messageInputArea.classList.remove('hidden');
+                messageList.scrollTop = messageList.scrollHeight;
+            });
+        }
+        
+        // Hiển thị tin nhắn lên màn hình
+        function displayMessage(message) {
+            if (!currentUser) return;
+
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble';
+
+            const sender = document.createElement('div');
+            sender.className = 'text-xs text-gray-500 mb-1';
+            sender.textContent = message.senderName;
+            
+            const messageContent = document.createElement('div');
+            messageContent.textContent = message.text;
+
+            if (message.senderId === currentUser.id) {
+                bubble.classList.add('my-message');
+                bubble.style.alignSelf = 'flex-end';
+                bubble.appendChild(messageContent);
+            } else {
+                bubble.classList.add('other-message');
+                bubble.style.alignSelf = 'flex-start';
+                bubble.appendChild(sender);
+                bubble.appendChild(messageContent);
+            }
+            messageList.appendChild(bubble);
+        }
+        
+        // Gửi một tin nhắn mới
+        async function sendMessage() {
+            const text = messageInput.value.trim();
+            if (!text || !currentRideId) return;
+            
+            const messagesRef = collection(db, `artifacts/${appId}/public/data/rides/${currentRideId}/messages`);
+            const rideRef = doc(db, `artifacts/${appId}/public/data/rides`, currentRideId);
+
+            const newMessage = {
+                senderId: currentUser.id,
+                senderName: currentUser.name,
+                text: text,
+                timestamp: new Date().toISOString()
+            };
+            
+            await addDoc(messagesRef, newMessage);
+            
+            if (text.toLowerCase().includes('gửi vt') || text.toLowerCase().includes('gửi vị trí')) {
+                await setDoc(rideRef, { locationReminder: true }, { merge: true });
+            }
+            
+            messageInput.value = '';
+        }
+
+        // Tạo cuốc xe mới
+        async function createNewRide() {
+            const name = prompt('Nhập tên cho cuốc xe:');
+            if (!name) return;
+            const origin = prompt('Nhập điểm đi:');
+            if (!origin) return;
+            const destination = prompt('Nhập điểm đến:');
+            if (!destination) return;
+            const pickupTime = prompt('Nhập thời gian đón (VD: CSCT, 10h sáng):');
+
+            const newRideRef = doc(collection(db, `artifacts/${appId}/public/data/rides`));
+            await setDoc(newRideRef, {
+                name: name,
+                origin: origin,
+                destination: destination,
+                pickupTime: pickupTime || 'Chưa xác định',
+                locationReminder: false,
+                status: 'Pending',
+                members: [userId]
+            });
+            showNotification('Thành công', 'Cuốc xe mới đã được tạo.');
+        }
+
+        // Chỉnh sửa cuốc xe hiện tại
+        async function editCurrentRide() {
+            if (!currentRideId) return;
+            const rideRef = doc(db, `artifacts/${appId}/public/data/rides`, currentRideId);
+            const rideSnap = await getDoc(rideRef);
+            if (!rideSnap.exists()) return;
+            const ride = rideSnap.data();
+
+            const newOrigin = prompt('Nhập điểm đi mới:', ride.origin);
+            if (newOrigin === null) return;
+            const newDestination = prompt('Nhập điểm đến mới:', ride.destination);
+            if (newDestination === null) return;
+            const newPickupTime = prompt('Nhập thời gian đón mới:', ride.pickupTime);
+            if (newPickupTime === null) return;
+
+            await setDoc(rideRef, {
+                origin: newOrigin.trim(),
+                destination: newDestination.trim(),
+                pickupTime: newPickupTime.trim()
+            }, { merge: true });
+            showNotification('Thành công', 'Cuốc xe đã được cập nhật.');
+        }
+        
+        // Nhận cuốc xe
+        async function acceptRide() {
+            if (!currentRideId) return;
+            const rideRef = doc(db, `artifacts/${appId}/public/data/rides`, currentRideId);
+            await setDoc(rideRef, { status: 'Accepted' }, { merge: true });
+            showNotification('Thành công', 'Cuốc xe đã được nhận.');
+        }
+
+        // Hủy cuốc xe
+        async function cancelRide() {
+            if (!currentRideId) return;
+            const rideRef = doc(db, `artifacts/${appId}/public/data/rides`, currentRideId);
+            await setDoc(rideRef, { status: 'Canceled' }, { merge: true });
+            const messagesRef = collection(db, `artifacts/${appId}/public/data/rides/${currentRideId}/messages`);
+            await addDoc(messagesRef, {
+                senderId: 'system',
+                senderName: 'Hệ thống',
+                text: 'Cuốc xe đã bị hủy bởi tài xế.',
+                timestamp: new Date().toISOString()
+            });
+            showNotification('Thông báo', 'Cuốc xe đã bị hủy.');
+        }
+
+        // Mở modal san điểm
+        async function openSharePointsModal() {
+            if (!currentRideId) {
+                showNotification('Lỗi', 'Vui lòng chọn một cuốc xe.');
+                return;
+            }
+
+            const members = await getRideMembers(currentRideId);
+            
+            const usersMap = {};
+            members.forEach(member => {
+                usersMap[member.id] = member;
+            });
+            
+            // Cập nhật điểm hiện tại của người dùng
+            currentUser = usersMap[userId];
+            if (!currentUser) {
+                showNotification('Lỗi', 'Bạn không phải là thành viên của cuốc xe này.');
+                return;
+            }
+
+            userPointsDisplay.textContent = `Điểm của bạn: ${currentUser.points || 0}`;
+            currentPointsDisplay.textContent = currentUser.points || 0;
+
+            receiverSelect.innerHTML = '';
+            members.forEach(member => {
+                if (member.id !== currentUser.id) {
+                    const option = document.createElement('option');
+                    option.value = member.id;
+                    option.textContent = member.name;
+                    receiverSelect.appendChild(option);
+                }
+            });
+
+            if (receiverSelect.options.length === 0) {
+                 showNotification('Lỗi', 'Không có tài xế nào khác trong nhóm để san điểm.');
+                 return;
+            }
+
+            pointsInput.value = '';
+            sharePointsModal.classList.remove('hidden');
+            sharePointsModal.classList.add('flex');
+        }
+
+        // Thực hiện san điểm
+        async function confirmSharePoints() {
+            const receiverId = receiverSelect.value;
+            const pointsToShare = parseInt(pointsInput.value, 10);
+
+            if (!receiverId || isNaN(pointsToShare) || pointsToShare <= 0) {
+                showNotification('Lỗi', 'Vui lòng chọn tài xế và nhập số điểm hợp lệ.');
+                return;
+            }
+
+            const sender = currentUser;
+            const receiverProfileRef = doc(db, `artifacts/${appId}/users/${receiverId}/profiles/user_profile`);
+            const receiverSnap = await getDoc(receiverProfileRef);
+            const receiver = receiverSnap.exists() ? receiverSnap.data() : { points: 0 };
+            
+            // Kiểm tra điều kiện san điểm
+            if (sender.points < 15 || sender.points < pointsToShare) {
+                showNotification('Lỗi', 'Bạn không đủ điểm để san. Yêu cầu điểm lớn hơn 15 và đủ số điểm san.');
+                return;
+            }
+
+            // Thực hiện giao dịch
+            const senderRef = doc(db, `artifacts/${appId}/users/${userId}/profiles/user_profile`);
+            await setDoc(senderRef, { points: sender.points - pointsToShare }, { merge: true });
+            await setDoc(receiverProfileRef, { points: receiver.points + pointsToShare }, { merge: true });
+            
+            // Gửi tin nhắn thông báo vào nhóm chat
+            const messagesRef = collection(db, `artifacts/${appId}/public/data/rides/${currentRideId}/messages`);
+            await addDoc(messagesRef, {
+                senderId: 'system',
+                senderName: 'Hệ thống',
+                text: `San cho ${receiver.name} ${pointsToShare} điểm.`,
+                timestamp: new Date().toISOString()
+            });
+
+            sharePointsModal.classList.add('hidden');
+            showNotification('Thành công', `Đã san ${pointsToShare} điểm cho ${receiver.name}.`);
+        }
+        
+        // --- Chức năng Quản lý Task/Bug mới ---
+        
+        function hideChatArea() {
+            chatHeader.classList.add('hidden');
+            messageList.classList.add('hidden');
+            messageInputArea.classList.add('hidden');
+            taskDetailArea.classList.remove('hidden');
+            // Ẩn tất cả nút liên quan đến cuốc xe
+            editRideBtn.classList.add('hidden');
+            acceptRideBtn.classList.add('hidden');
+            cancelRideBtn.classList.add('hidden');
+            sharePointsBtn.classList.add('hidden');
+        }
+        
+        function showChatArea() {
+            chatHeader.classList.remove('hidden');
+            messageList.classList.remove('hidden');
+            messageInputArea.classList.remove('hidden');
+            taskDetailArea.classList.add('hidden');
+            // Hiển thị lại các nút liên quan đến cuốc xe
+            editRideBtn.classList.remove('hidden');
+            acceptRideBtn.classList.remove('hidden');
+            cancelRideBtn.classList.remove('hidden');
+            sharePointsBtn.classList.remove('hidden');
+        }
+
+        // Chọn một task để hiển thị chi tiết
+        function selectTask(taskId) {
+            currentTaskId = taskId;
+            document.querySelectorAll('.task-item').forEach(item => item.classList.remove('selected'));
+            const selectedTaskElement = document.querySelector(`.task-item[data-task-id="${taskId}"]`);
+            if (selectedTaskElement) {
+                selectedTaskElement.classList.add('selected');
+            }
+            const taskRef = doc(db, `artifacts/${appId}/public/data/tasks_and_bugs`, taskId);
+            onSnapshot(taskRef, (docSnap) => {
+                const task = docSnap.data();
+                if (task) {
+                    taskDetailTitle.textContent = task.title;
+                    taskDetailDescription.textContent = task.description;
+                    taskDetailType.textContent = task.type;
+                    taskDetailStatus.textContent = task.status;
+                    taskDetailAssignee.textContent = task.assigneeName;
+                    taskDetailDate.textContent = new Date(task.date).toLocaleDateString();
+                }
+            });
+        }
+        
+        // Tạo một task mới
+        async function createNewTask() {
+            const title = taskTitleInput.value.trim();
+            const description = taskDescriptionInput.value.trim();
+            const type = taskTypeSelect.value;
+            if (!title) {
+                showNotification('Lỗi', 'Vui lòng nhập tiêu đề cho task.');
+                return;
+            }
+            const newTaskRef = doc(collection(db, `artifacts/${appId}/public/data/tasks_and_bugs`));
+            await setDoc(newTaskRef, {
+                title: title,
+                description: description || 'Không có mô tả',
+                type: type,
+                status: 'To Do',
+                assigneeId: userId,
+                assigneeName: currentUser.name,
+                date: new Date().toISOString()
+            });
+            createTaskModal.classList.add('hidden');
+            showNotification('Thành công', `${type} mới đã được tạo.`);
+        }
+
+        // Cập nhật trạng thái của task
+        async function updateTaskStatus() {
+            if (!currentTaskId) return;
+            const taskRef = doc(db, `artifacts/${appId}/public/data/tasks_and_bugs`, currentTaskId);
+            const taskSnap = await getDoc(taskRef);
+            if (!taskSnap.exists()) return;
+            const currentStatus = taskSnap.data().status;
+            let newStatus = 'To Do';
+            if (currentStatus === 'To Do') {
+                newStatus = 'In Progress';
+            } else if (currentStatus === 'In Progress') {
+                newStatus = 'Done';
+            } else {
+                newStatus = 'To Do';
+            }
+            await setDoc(taskRef, { status: newStatus }, { merge: true });
+            showNotification('Thành công', `Trạng thái task đã được cập nhật thành "${newStatus}".`);
+        }
+
+        // Xóa task
+        async function deleteTask() {
+            if (!currentTaskId) return;
+            const taskRef = doc(db, `artifacts/${appId}/public/data/tasks_and_bugs`, currentTaskId);
+            await deleteDoc(taskRef);
+            showNotification('Thành công', 'Task đã được xóa.');
+            // Quay về tab task và ẩn chi tiết
+            tabTasks.click();
+        }
+
+        // --- 4. Xử lý sự kiện và Tải trạng thái ban đầu ---
+        loginBtn.addEventListener('click', login);
+        sendBtn.addEventListener('click', sendMessage);
+        editRideBtn.addEventListener('click', editCurrentRide);
+        acceptRideBtn.addEventListener('click', acceptRide);
+        cancelRideBtn.addEventListener('click', cancelRide);
+        sharePointsBtn.addEventListener('click', openSharePointsModal);
+        
+        closeModalBtn.addEventListener('click', () => {
+            notificationModal.classList.add('hidden');
+        });
+        cancelShareBtn.addEventListener('click', () => {
+            sharePointsModal.classList.add('hidden');
+        });
+        confirmShareBtn.addEventListener('click', confirmSharePoints);
+        
+        cancelCreateTaskBtn.addEventListener('click', () => {
+            createTaskModal.classList.add('hidden');
+        });
+        confirmCreateTaskBtn.addEventListener('click', createNewTask);
+        
+        updateStatusBtn.addEventListener('click', updateTaskStatus);
+        deleteTaskBtn.addEventListener('click', deleteTask);
+
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        document.querySelectorAll('.quick-chat-btn').forEach(button => {
+            button.addEventListener('click', () => {
+                messageInput.value = button.textContent;
+                sendMessage();
+            });
+        });
+
+        // Xử lý chuyển đổi tab
+        tabRides.addEventListener('click', () => {
+            tabContentRides.classList.remove('hidden');
+            tabContentTasks.classList.add('hidden');
+            tabRides.classList.add('bg-gray-100');
+            tabTasks.classList.remove('bg-gray-100');
+            mainActionBtn.textContent = 'Tạo Cuốc Xe Mới';
+            mainActionBtn.removeEventListener('click', openCreateTaskModal);
+            mainActionBtn.addEventListener('click', createNewRide);
+            showChatArea();
+            if (currentRideId) {
+                selectRide(currentRideId);
+            }
+        });
+
+        tabTasks.addEventListener('click', () => {
+            tabContentTasks.classList.remove('hidden');
+            tabContentRides.classList.add('hidden');
+            tabTasks.classList.add('bg-gray-100');
+            tabRides.classList.remove('bg-gray-100');
+            mainActionBtn.textContent = 'Tạo Task/Bug Mới';
+            mainActionBtn.removeEventListener('click', createNewRide);
+            mainActionBtn.addEventListener('click', openCreateTaskModal);
+            hideChatArea();
+        });
+
+        function openCreateTaskModal() {
+            createTaskModal.classList.remove('hidden');
+            createTaskModal.classList.add('flex');
+            taskTitleInput.value = '';
+            taskDescriptionInput.value = '';
+            taskTypeSelect.value = 'Task';
+        }
+
+        // Khởi tạo Firebase khi ứng dụng tải
+        initializeFirebase();
+    </script>
+</body>
+</html>
